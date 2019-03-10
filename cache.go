@@ -9,13 +9,15 @@ var errNotInitialized = errors.New("cache is not initialized")
 
 // Cache defines app objects
 type Cache struct {
-	mu *sync.RWMutex
+	mu   *sync.RWMutex
+	hash Hasher
 }
 
 // New creates app
 func New(size uint64) *Cache {
 	return &Cache{
-		mu: &sync.RWMutex{},
+		mu:   &sync.RWMutex{},
+		hash: new(CRC32),
 	}
 }
 
