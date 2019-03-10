@@ -3,6 +3,8 @@ package zzcache
 import (
 	"errors"
 	"sync"
+
+	"github.com/armon/go-radix"
 )
 
 const shardCount = 512
@@ -14,6 +16,7 @@ type Cache struct {
 	mu     *sync.RWMutex
 	hash   Hasher
 	shards [shardCount]shard
+	tree   *radix.Tree
 }
 
 // New creates app
@@ -21,6 +24,7 @@ func New(size uint64) *Cache {
 	return &Cache{
 		mu:   &sync.RWMutex{},
 		hash: new(CRC32),
+		tree: radix.New(),
 	}
 }
 
