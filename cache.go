@@ -5,12 +5,15 @@ import (
 	"sync"
 )
 
+const shardCount = 512
+
 var errNotInitialized = errors.New("cache is not initialized")
 
 // Cache defines app objects
 type Cache struct {
-	mu   *sync.RWMutex
-	hash Hasher
+	mu     *sync.RWMutex
+	hash   Hasher
+	shards [shardCount]shard
 }
 
 // New creates app
