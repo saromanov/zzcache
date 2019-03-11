@@ -36,3 +36,12 @@ func (c *Cache) Set(key, value []byte) error {
 
 	return nil
 }
+
+// Get provides getting data from the cache
+func (c *Cache) Get(key []byte) error {
+	if c == nil {
+		return errNotInitialized
+	}
+
+	return nil
+}
