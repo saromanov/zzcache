@@ -12,6 +12,7 @@ const shardCount = 512
 var (
 	errNotInitialized = errors.New("cache is not initialized")
 	errNotInserted    = errors.New("unable to insert data")
+	errNotFound       = errors.New("element is not found")
 )
 
 // Cache defines app objects
@@ -50,5 +51,9 @@ func (c *Cache) Get(key []byte) error {
 		return errNotInitialized
 	}
 
+	value := c.tree.Get(string(key))
+	if value == nil {
+		return errNotFound
+	}
 	return nil
 }
