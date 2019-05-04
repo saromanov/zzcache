@@ -95,7 +95,7 @@ func validateSet(key, value []byte) error {
 	return nil
 }
 
-func (c *Cache) get(segment uint32, key) error {
+func (c *Cache) get(segment uint32, key []byte) error {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	if c == nil {
