@@ -36,7 +36,9 @@ func New(size uint64) *Cache {
 
 // Set provides inserting to the cache
 func (c *Cache) Set(key, value []byte) error {
-	return c.set(key, value)
+	hash := c.hash.Do(key)
+	segment := hash & shardCount
+	return c.set(segment, key, value)
 }
 
 // Get provides getting data from the cache
@@ -67,7 +69,7 @@ func (c *Cache) Delete(key []byte) error {
 	return nil
 }
 
-func (c *Cache) set(key, value []byte) error {
+func (c *Cache) set(segment uint32, key, value []byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c == nil {
@@ -77,6 +79,9 @@ func (c *Cache) set(key, value []byte) error {
 		return err
 	}
 
+	if err := c.shards[segment].set(key, value); err != nil {
+		return err
+	}
 	_, ok := c.tree.Insert(string(key), value)
 	if !ok {
 		return errNotInserted
