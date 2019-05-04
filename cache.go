@@ -48,18 +48,18 @@ func (c *Cache) Set(key, value []byte) error {
 }
 
 // Get provides getting data from the cache
-func (c *Cache) Get(key []byte) error {
+func (c *Cache) Get(key []byte) ([]byte, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	if c == nil {
-		return errNotInitialized
+		return nil, errNotInitialized
 	}
 
 	value, ok := c.tree.Get(string(key))
 	if value == nil || !ok {
-		return errNotFound
+		return nil, errNotFound
 	}
-	return nil
+	return value.([]byte), nil
 }
 
 // Delete provides deletetign data from the cache
