@@ -34,6 +34,8 @@ func New(size uint64) *Cache {
 
 // Set provides inserting to the cache
 func (c *Cache) Set(key, value []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c == nil {
 		return errNotInitialized
 	}
@@ -47,6 +49,8 @@ func (c *Cache) Set(key, value []byte) error {
 
 // Get provides getting data from the cache
 func (c *Cache) Get(key []byte) error {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	if c == nil {
 		return errNotInitialized
 	}
