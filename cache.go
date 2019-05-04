@@ -13,8 +13,8 @@ var (
 	errNotInitialized = errors.New("cache is not initialized")
 	errNotInserted    = errors.New("unable to insert data")
 	errNotFound       = errors.New("element is not found")
-	errNoKey = errors.New("key is not defined")
-	errNoValue = errors.New("value is not defined")
+	errNoKey          = errors.New("key is not defined")
+	errNoValue        = errors.New("value is not defined")
 )
 
 // Cache defines app objects
@@ -36,17 +36,7 @@ func New(size uint64) *Cache {
 
 // Set provides inserting to the cache
 func (c *Cache) Set(key, value []byte) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c == nil {
-		return errNotInitialized
-	}
-
-	_, ok := c.tree.Insert(string(key), value)
-	if !ok {
-		return errNotInserted
-	}
-	return nil
+	return c.set(key, value)
 }
 
 // Get provides getting data from the cache
@@ -77,12 +67,21 @@ func (c *Cache) Delete(key []byte) error {
 	return nil
 }
 
-func set(key, value []byte) error {
+func (c *Cache) set(key, value []byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c == nil {
 		return errNotInitialized
 	}
+	if err := validateSet(key, value); err != nil {
+		return err
+	}
+
+	_, ok := c.tree.Insert(string(key), value)
+	if !ok {
+		return errNotInserted
+	}
+	return nil
 }
 
 // validateSet provides validating of the input data
