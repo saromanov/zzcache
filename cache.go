@@ -51,8 +51,8 @@ func (c *Cache) Get(key []byte) error {
 		return errNotInitialized
 	}
 
-	value := c.tree.Get(string(key))
-	if value == nil {
+	value, ok := c.tree.Get(string(key))
+	if value == nil || !ok {
 		return errNotFound
 	}
 	return nil
