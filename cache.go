@@ -9,7 +9,10 @@ import (
 
 const shardCount = 512
 
-var errNotInitialized = errors.New("cache is not initialized")
+var (
+	errNotInitialized = errors.New("cache is not initialized")
+	errNotInserted    = errors.New("unable to insert data")
+)
 
 // Cache defines app objects
 type Cache struct {
@@ -34,6 +37,10 @@ func (c *Cache) Set(key, value []byte) error {
 		return errNotInitialized
 	}
 
+	_, ok := c.tree.Insert(string(key), value)
+	if !ok {
+		return errNotInserted
+	}
 	return nil
 }
 
