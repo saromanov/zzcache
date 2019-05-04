@@ -37,15 +37,15 @@ func New(size uint64) *Cache {
 // Set provides inserting to the cache
 func (c *Cache) Set(key, value []byte) error {
 	hash := c.hash.Do(key)
-	segment := hash & shardCount
-	return c.set(segment, key, value)
+	shardID := hash & shardCount
+	return c.set(shardID, key, value)
 }
 
 // Get provides getting data from the cache
 func (c *Cache) Get(key []byte) ([]byte, error) {
 	hash := c.hash.Do(key)
-	segment := hash & shardCount
-	return c.get(segment, key)
+	shardID := hash & shardCount
+	return c.get(shardID, key)
 }
 
 // Delete provides deletetign data from the cache
@@ -61,7 +61,7 @@ func (c *Cache) Delete(key []byte) error {
 	return nil
 }
 
-func (c *Cache) set(segment uint32, key, value []byte) error {
+func (c *Cache) set(shardID uint32, key, value []byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c == nil {
@@ -71,7 +71,7 @@ func (c *Cache) set(segment uint32, key, value []byte) error {
 		return err
 	}
 
-	if err := c.shards[segment].set(key, value); err != nil {
+	if err := c.shards[shardID].set(key, value); err != nil {
 		return err
 	}
 	_, ok := c.tree.Insert(string(key), value)
@@ -95,7 +95,7 @@ func validateSet(key, value []byte) error {
 	return nil
 }
 
-func (c *Cache) get(segment uint32, key []byte) ([]byte, error) {
+func (c *Cache) get(shardID uint32, key []byte) ([]byte, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	if c == nil {
