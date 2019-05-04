@@ -61,3 +61,16 @@ func (c *Cache) Get(key []byte) error {
 	}
 	return nil
 }
+
+// Delete provides deletetign data from the cache
+func (c *Cache) Delete(key []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	_, ok := c.tree.Delete(string(key))
+	if !ok {
+		return errNotFound
+	}
+
+	return nil
+}
