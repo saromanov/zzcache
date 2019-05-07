@@ -61,6 +61,8 @@ func (c *Cache) Delete(key []byte) error {
 	return nil
 }
 
+// inner method for validating of the input data
+// and append data to shards
 func (c *Cache) set(shardID uint32, key, value []byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
