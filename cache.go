@@ -25,6 +25,11 @@ type Cache struct {
 	tree   *radix.Tree
 }
 
+type Item struct {
+	key   string
+	value interface{}
+}
+
 // New creates app
 func New(size uint64) *Cache {
 	return &Cache{
@@ -51,21 +56,19 @@ func (c *Cache) Get(key []byte) ([]byte, error) {
 // Delete provides deletetign data from the cache
 func (c *Cache) Delete(key []byte) error {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 
 	_, ok := c.tree.Delete(string(key))
 	if !ok {
 		return errNotFound
 	}
 
+	defer c.mu.Unlock()
 	return nil
 }
 
 // inner method for validating of the input data
 // and append data to shards
 func (c *Cache) set(shardID uint32, key, value []byte) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	if c == nil {
 		return errNotInitialized
 	}
@@ -76,10 +79,12 @@ func (c *Cache) set(shardID uint32, key, value []byte) error {
 	if err := c.shards[shardID].set(key, value); err != nil {
 		return err
 	}
+	c.mu.Lock()
 	_, ok := c.tree.Insert(string(key), value)
 	if !ok {
 		return errNotInserted
 	}
+	defer c.mu.Unlock()
 	return nil
 }
 
