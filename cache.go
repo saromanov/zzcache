@@ -3,6 +3,7 @@ package zzcache
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/armon/go-radix"
 )
@@ -40,7 +41,7 @@ func New(size uint64) *Cache {
 }
 
 // Set provides inserting to the cache
-func (c *Cache) Set(key, value []byte) error {
+func (c *Cache) Set(key, value []byte, d time.Duration) error {
 	hash := c.hash.Do(key)
 	shardID := hash & shardCount
 	return c.set(shardID, key, value)
