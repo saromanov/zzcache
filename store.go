@@ -1,6 +1,10 @@
 package zzcache
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/armon/go-radix"
+)
 
 type Store interface {
 	Set(key string, value []byte) error
@@ -19,7 +23,24 @@ func (m *Map) Get(key string) ([]byte, error) {
 	return v, nil
 }
 
-func (m *Map) Set(key string, value []byte) ([]byte, error) {
+func (m *Map) Set(key string, value []byte) error {
 	m.data[key] = value
+	return nil
+}
+
+type Radix struct {
+	tree *radix.Tree
+}
+
+func (r *Radix) Get(key string) ([]byte, error) {
+	res, ok := r.tree.Get(key)
+	if !ok {
+		return nil, fmt.Errorf("unable to get value")
+	}
+	return res.([]byte), nil
+}
+
+func (r *Radix) Set(key string, value []byte) ([]byte, error) {
+	r.tree.Insert(key, value)
 	return nil, nil
 }
