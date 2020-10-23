@@ -9,6 +9,7 @@ import (
 type Store interface {
 	Set(key string, value []byte) error
 	Get(key string) ([]byte, error)
+	Delete(key string) error
 }
 
 type Map struct {
@@ -34,6 +35,11 @@ func (m *Map) Set(key string, value []byte) error {
 	return nil
 }
 
+func (m *Map) Delete(key string) error {
+	delete(m.data, key)
+	return nil
+}
+
 type Radix struct {
 	tree *radix.Tree
 }
@@ -49,4 +55,12 @@ func (r *Radix) Get(key string) ([]byte, error) {
 func (r *Radix) Set(key string, value []byte) ([]byte, error) {
 	r.tree.Insert(key, value)
 	return nil, nil
+}
+
+func (r *Radix) Delete(key string) error {
+	_, ok := r.tree.Delete(key)
+	if !ok {
+		return fmt.Errorf("unable to delete key: %s", key)
+	}
+	return nil
 }

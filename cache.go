@@ -36,7 +36,7 @@ func New(size uint64) *Cache {
 	return &Cache{
 		mu:   &sync.RWMutex{},
 		hash: new(CRC32),
-		tree: radix.New(),
+		store: NewMap(),
 	}
 }
 
