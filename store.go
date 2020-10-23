@@ -15,6 +15,12 @@ type Map struct {
 	data map[string][]byte
 }
 
+func NewMap() Store {
+	return &Map{
+		data: map[string][]byte{},
+	}
+}
+
 func (m *Map) Get(key string) ([]byte, error) {
 	v, ok := m.data[key]
 	if !ok {

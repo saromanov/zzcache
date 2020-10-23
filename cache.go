@@ -23,7 +23,7 @@ type Cache struct {
 	mu     *sync.RWMutex
 	hash   Hasher
 	shards [shardCount]shard
-	tree   *radix.Tree
+	store  Store
 }
 
 type Item struct {
