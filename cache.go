@@ -30,11 +30,15 @@ type Item struct {
 }
 
 // New creates app
-func New(size uint64) *Cache {
+func New(size uint64, storeType string) *Cache {
+	store := NewMap()
+	if storeType == "radix" {
+		store = NewRadix()
+	}
 	return &Cache{
 		mu:    &sync.RWMutex{},
 		hash:  new(CRC32),
-		store: NewMap(),
+		store: store,
 	}
 }
 

@@ -45,7 +45,9 @@ type Radix struct {
 }
 
 func NewRadix() Store {
-	return tree.NewTree()
+	return &Radix{
+		tree: radix.New(),
+	}
 }
 
 func (r *Radix) Get(key string) ([]byte, error) {
@@ -56,9 +58,12 @@ func (r *Radix) Get(key string) ([]byte, error) {
 	return res.([]byte), nil
 }
 
-func (r *Radix) Set(key string, value []byte) ([]byte, error) {
-	r.tree.Insert(key, value)
-	return nil, nil
+func (r *Radix) Set(key string, value []byte) error {
+	_, ok := r.tree.Insert(key, value)
+	if !ok {
+		return fmt.Errorf("unable to insert data")
+	}
+	return nil
 }
 
 func (r *Radix) Delete(key string) error {
