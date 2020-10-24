@@ -20,8 +20,9 @@ var (
 type Cache struct {
 	mu     *sync.RWMutex
 	hash   Hasher
-	shards [shardCount]shard
+	shards []*shard
 	store  Store
+	size   uint32
 }
 
 type Item struct {
@@ -30,22 +31,32 @@ type Item struct {
 }
 
 // New creates app
-func New(size uint64, storeType string) *Cache {
+func New(size uint32, storeType string) *Cache {
 	store := NewMap()
 	if storeType == "radix" {
 		store = NewRadix()
 	}
 	return &Cache{
-		mu:    &sync.RWMutex{},
-		hash:  new(CRC32),
-		store: store,
+		mu:     &sync.RWMutex{},
+		hash:   new(CRC32),
+		store:  store,
+		shards: initShards(size),
+		size:   size,
 	}
+}
+
+func initShards(size uint32) []*shard {
+	s := make([]*shard, size)
+	for i := uint32(0); i < size; i++ {
+		s[i] = newShard()
+	}
+	return s
 }
 
 // Set provides inserting to the cache
 func (c *Cache) Set(key, value []byte, d time.Duration) error {
 	hash := c.hash.Do(key)
-	shardID := hash & shardCount
+	shardID := hash & c.size
 	return c.set(shardID, key, value)
 }
 
