@@ -32,8 +32,8 @@ type Item struct {
 // New creates app
 func New(size uint64) *Cache {
 	return &Cache{
-		mu:   &sync.RWMutex{},
-		hash: new(CRC32),
+		mu:    &sync.RWMutex{},
+		hash:  new(CRC32),
 		store: NewMap(),
 	}
 }
@@ -56,9 +56,9 @@ func (c *Cache) Get(key []byte) ([]byte, error) {
 func (c *Cache) Delete(key []byte) error {
 	c.mu.Lock()
 
-	_, ok := c.store.Delete(string(key))
-	if !ok {
-		return errNotFound
+	err := c.store.Delete(string(key))
+	if err != nil {
+		return err
 	}
 
 	defer c.mu.Unlock()
@@ -79,9 +79,9 @@ func (c *Cache) set(shardID uint32, key, value []byte) error {
 		return err
 	}
 	c.mu.Lock()
-	_, ok := c.store.Insert(string(key), value)
-	if !ok {
-		return errNotInserted
+	err := c.store.Set(string(key), value)
+	if err != nil {
+		return err
 	}
 	defer c.mu.Unlock()
 	return nil
@@ -108,9 +108,12 @@ func (c *Cache) get(shardID uint32, key []byte) ([]byte, error) {
 		return nil, errNotInitialized
 	}
 
-	value, ok := c.store.Get(string(key))
-	if value == nil || !ok {
+	value, err := c.store.Get(string(key))
+	if value == nil {
 		return nil, errNotFound
 	}
-	return value.([]byte), nil
+	if err != nil {
+		return nil, err
+	}
+	return value, nil
 }
