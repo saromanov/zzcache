@@ -44,6 +44,10 @@ type Radix struct {
 	tree *radix.Tree
 }
 
+func NewRadix() Store {
+	return tree.NewTree()
+}
+
 func (r *Radix) Get(key string) ([]byte, error) {
 	res, ok := r.tree.Get(key)
 	if !ok {
