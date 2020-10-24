@@ -4,8 +4,6 @@ import (
 	"errors"
 	"sync"
 	"time"
-
-	"github.com/armon/go-radix"
 )
 
 const shardCount = 512
@@ -58,7 +56,7 @@ func (c *Cache) Get(key []byte) ([]byte, error) {
 func (c *Cache) Delete(key []byte) error {
 	c.mu.Lock()
 
-	_, ok := c.tree.Delete(string(key))
+	_, ok := c.store.Delete(string(key))
 	if !ok {
 		return errNotFound
 	}
@@ -81,7 +79,7 @@ func (c *Cache) set(shardID uint32, key, value []byte) error {
 		return err
 	}
 	c.mu.Lock()
-	_, ok := c.tree.Insert(string(key), value)
+	_, ok := c.store.Insert(string(key), value)
 	if !ok {
 		return errNotInserted
 	}
@@ -110,7 +108,7 @@ func (c *Cache) get(shardID uint32, key []byte) ([]byte, error) {
 		return nil, errNotInitialized
 	}
 
-	value, ok := c.tree.Get(string(key))
+	value, ok := c.store.Get(string(key))
 	if value == nil || !ok {
 		return nil, errNotFound
 	}
