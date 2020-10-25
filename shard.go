@@ -49,3 +49,7 @@ func (s *shard) get(key []byte) ([]byte, error) {
 	}
 	return value, nil
 }
+
+func (s *shard) del(key []byte) error {
+	return s.store.Delete(string(key))
+}

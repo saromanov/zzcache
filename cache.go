@@ -60,15 +60,16 @@ func (c *Cache) Set(key, value []byte, d time.Duration) error {
 // Get provides getting data from the cache
 func (c *Cache) Get(key []byte) ([]byte, error) {
 	hash := c.hash.Do(key)
-	shardID := hash & shardCount
+	shardID := hash & c.size
 	return c.get(shardID, key)
 }
 
 // Delete provides deletetign data from the cache
 func (c *Cache) Delete(key []byte) error {
 	c.mu.Lock()
-
-	err := c.store.Delete(string(key))
+	hash := c.hash.Do(key)
+	shardID := hash & c.size
+	err := c.shards[shardID].del(key)
 	if err != nil {
 		return err
 	}
@@ -114,6 +115,10 @@ func (c *Cache) get(shardID uint32, key []byte) ([]byte, error) {
 	defer c.mu.RUnlock()
 	if c == nil {
 		return nil, errNotInitialized
+	}
+	value, err := c.shards[shardID].get(key)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get value from shard id: %d %v", shardID, err)
 	}
 	return value, nil
 }
