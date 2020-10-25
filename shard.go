@@ -1,7 +1,6 @@
 package zzcache
 
 import (
-	"container/list"
 	"errors"
 )
 
@@ -11,7 +10,7 @@ var errKeyTooLarge = errors.New("key is too large")
 
 // shard provides implementation of the shard for cache
 type shard struct {
-	l *list.List
+	store Store
 }
 
 // entry represents d-s for inserting to linked list
@@ -21,9 +20,9 @@ type entry struct {
 }
 
 // newShard creates a new shard
-func newShard() *shard {
+func newShard(s Store) *shard {
 	return &shard{
-		l: list.New(),
+		store: s,
 	}
 }
 
@@ -33,6 +32,20 @@ func (s *shard) set(key, value []byte) error {
 		return errKeyTooLarge
 	}
 
-	s.l.PushFront(&entry{key, value})
+	err := s.store.Set(string(key), value)
+	if err != nil {
+		return err
+	}
 	return nil
+}
+
+func (s *shard) get(key []byte) ([]byte, error) {
+	value, err := s.store.Get(string(key))
+	if value == nil {
+		return nil, errNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return value, nil
 }

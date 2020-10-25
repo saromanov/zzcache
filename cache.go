@@ -22,13 +22,7 @@ type Cache struct {
 	mu     *sync.RWMutex
 	hash   Hasher
 	shards []*shard
-	store  Store
 	size   uint32
-}
-
-type Item struct {
-	key   string
-	value interface{}
 }
 
 // New creates app
@@ -43,16 +37,15 @@ func New(size uint32, storeType string) (*Cache, error) {
 	return &Cache{
 		mu:     &sync.RWMutex{},
 		hash:   new(CRC32),
-		store:  store,
-		shards: initShards(size),
+		shards: initShards(size, store),
 		size:   size,
 	}, nil
 }
 
-func initShards(size uint32) []*shard {
+func initShards(size uint32, st Store) []*shard {
 	s := make([]*shard, size)
 	for i := uint32(0); i < size; i++ {
-		s[i] = newShard()
+		s[i] = newShard(st)
 	}
 	return s
 }
@@ -61,7 +54,7 @@ func initShards(size uint32) []*shard {
 func (c *Cache) Set(key, value []byte, d time.Duration) error {
 	hash := c.hash.Do(key)
 	shardID := hash & c.size
-	return c.set(shardID, key, value)
+	return c.set(shardID, key, value, d)
 }
 
 // Get provides getting data from the cache
@@ -86,7 +79,7 @@ func (c *Cache) Delete(key []byte) error {
 
 // inner method for validating of the input data
 // and append data to shards
-func (c *Cache) set(shardID uint32, key, value []byte) error {
+func (c *Cache) set(shardID uint32, key, value []byte, d time.Duration) error {
 	if c == nil {
 		return errNotInitialized
 	}
@@ -94,15 +87,11 @@ func (c *Cache) set(shardID uint32, key, value []byte) error {
 		return err
 	}
 
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if err := c.shards[shardID].set(key, value); err != nil {
 		return err
 	}
-	c.mu.Lock()
-	err := c.store.Set(string(key), value)
-	if err != nil {
-		return err
-	}
-	defer c.mu.Unlock()
 	return nil
 }
 
@@ -125,14 +114,6 @@ func (c *Cache) get(shardID uint32, key []byte) ([]byte, error) {
 	defer c.mu.RUnlock()
 	if c == nil {
 		return nil, errNotInitialized
-	}
-
-	value, err := c.store.Get(string(key))
-	if value == nil {
-		return nil, errNotFound
-	}
-	if err != nil {
-		return nil, err
 	}
 	return value, nil
 }
