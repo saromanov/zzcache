@@ -2,6 +2,7 @@ package zzcache
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -31,7 +32,10 @@ type Item struct {
 }
 
 // New creates app
-func New(size uint32, storeType string) *Cache {
+func New(size uint32, storeType string) (*Cache, error) {
+	if size == 0 {
+		return nil, fmt.Errorf("size of shards is not deifned")
+	}
 	store := NewMap()
 	if storeType == "radix" {
 		store = NewRadix()
@@ -42,7 +46,7 @@ func New(size uint32, storeType string) *Cache {
 		store:  store,
 		shards: initShards(size),
 		size:   size,
-	}
+	}, nil
 }
 
 func initShards(size uint32) []*shard {
