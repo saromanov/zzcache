@@ -71,7 +71,7 @@ func (c *Cache) Delete(key []byte) error {
 	shardID := hash & c.size
 	err := c.shards[shardID].del(key)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to delete key: %v", err)
 	}
 
 	defer c.mu.Unlock()

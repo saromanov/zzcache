@@ -2,6 +2,7 @@ package zzcache
 
 import (
 	"errors"
+	"time"
 )
 
 const maxKeySize = 65535
@@ -15,8 +16,8 @@ type shard struct {
 
 // entry represents d-s for inserting to linked list
 type entry struct {
-	key   []byte
 	value []byte
+	ttl   time.Time
 }
 
 // newShard creates a new shard
