@@ -1,6 +1,8 @@
 package zzcache
 
 import (
+	"bytes"
+	"encoding/gob"
 	"errors"
 	"time"
 )
@@ -28,12 +30,20 @@ func newShard(s Store) *shard {
 }
 
 // set provides inserting of the data
-func (s *shard) set(key, value []byte) error {
+func (s *shard) set(key, value []byte, d time.Duration) error {
 	if len(key) > maxKeySize {
 		return errKeyTooLarge
 	}
 
-	err := s.store.Set(string(key), value)
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	if err := enc.Encode(&entry{
+		value: value,
+		ttl:   time.Now().UTC().Add(d),
+	}); err != nil {
+		return err
+	}
+	err := s.store.Set(string(key), buf.Bytes())
 	if err != nil {
 		return err
 	}

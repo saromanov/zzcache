@@ -90,7 +90,7 @@ func (c *Cache) set(shardID uint32, key, value []byte, d time.Duration) error {
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if err := c.shards[shardID].set(key, value); err != nil {
+	if err := c.shards[shardID].set(key, value, d); err != nil {
 		return err
 	}
 	return nil
