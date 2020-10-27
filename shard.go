@@ -18,8 +18,8 @@ type shard struct {
 
 // entry represents d-s for inserting to linked list
 type entry struct {
-	value []byte
-	ttl   time.Time
+	Value []byte
+	TTL   time.Time
 }
 
 // newShard creates a new shard
@@ -38,8 +38,8 @@ func (s *shard) set(key, value []byte, d time.Duration) error {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
 	if err := enc.Encode(&entry{
-		value: value,
-		ttl:   time.Now().UTC().Add(d),
+		Value: value,
+		TTL:   time.Now().UTC().Add(d),
 	}); err != nil {
 		return err
 	}
@@ -58,7 +58,16 @@ func (s *shard) get(key []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return value, nil
+
+	w := entry{}
+
+	//Use default gob decoder
+	reader := bytes.NewReader(value)
+	dec := gob.NewDecoder(reader)
+	if err := dec.Decode(&w); err != nil {
+		return nil, err
+	}
+	return w.Value, nil
 }
 
 func (s *shard) del(key []byte) error {
