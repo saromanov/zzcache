@@ -14,6 +14,13 @@ func TestSet(t *testing.T) {
 
 	_, err = New(0, "")
 	assert.Error(t, err)
+
+	c, err = New(10, "radix")
+	assert.NoError(t, err)
+	assert.NoError(t, c.Set([]byte("key"), []byte("value"), 2*time.Second))
+
+	_, err = New(0, "")
+	assert.Error(t, err)
 }
 
 func TestGet(t *testing.T) {
@@ -26,4 +33,15 @@ func TestGet(t *testing.T) {
 	time.Sleep(2 * time.Second)
 	_, err = c.Get([]byte("key"))
 	assert.Error(t, err)
+}
+
+func TestDelete(t *testing.T) {
+	c, err := New(5, "")
+	assert.NoError(t, err)
+	assert.NoError(t, c.Set([]byte("key"), []byte("value"), 2*time.Second))
+	assert.NoError(t, c.Delete([]byte("key")))
+	_, err = c.Get([]byte("key"))
+	assert.Error(t, err)
+
+	assert.NoError(t, c.Delete([]byte("va")))
 }
