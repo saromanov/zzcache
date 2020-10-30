@@ -23,4 +23,7 @@ func TestGet(t *testing.T) {
 	d, err := c.Get([]byte("key"))
 	assert.NoError(t, err)
 	assert.Equal(t, "value", string(d))
+	time.Sleep(2 * time.Second)
+	_, err = c.Get([]byte("key"))
+	assert.Error(t, err)
 }

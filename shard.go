@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -66,6 +67,9 @@ func (s *shard) get(key []byte) ([]byte, error) {
 	dec := gob.NewDecoder(reader)
 	if err := dec.Decode(&w); err != nil {
 		return nil, err
+	}
+	if time.Now().UTC().After(w.TTL) {
+		return nil, fmt.Errorf("data has expired")
 	}
 	return w.Value, nil
 }
