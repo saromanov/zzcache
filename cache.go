@@ -52,24 +52,18 @@ func initShards(size uint32, st Store) []*shard {
 
 // Set provides inserting to the cache
 func (c *Cache) Set(key, value []byte, d time.Duration) error {
-	hash := c.hash.Do(key)
-	shardID := hash & c.size
-	return c.set(shardID, key, value, d)
+	return c.set(c.getShard(key), key, value, d)
 }
 
 // Get provides getting data from the cache
 func (c *Cache) Get(key []byte) ([]byte, error) {
-	hash := c.hash.Do(key)
-	shardID := hash & c.size
-	return c.get(shardID, key)
+	return c.get(c.getShard(key), key)
 }
 
 // Delete provides deletetign data from the cache
 func (c *Cache) Delete(key []byte) error {
 	c.mu.Lock()
-	hash := c.hash.Do(key)
-	shardID := hash & c.size
-	err := c.shards[shardID].del(key)
+	err := c.shards[c.getShard(key)].del(key)
 	if err != nil {
 		return fmt.Errorf("unable to delete key: %v", err)
 	}
@@ -96,6 +90,24 @@ func (c *Cache) set(shardID uint32, key, value []byte, d time.Duration) error {
 	return nil
 }
 
+func (c *Cache) get(shardID uint32, key []byte) ([]byte, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c == nil {
+		return nil, errNotInitialized
+	}
+	value, err := c.shards[shardID].get(key)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get value from shard id: %d %v", shardID, err)
+	}
+	return value, nil
+}
+
+func (c *Cache) getShard(key []byte) uint32 {
+	hash := c.hash.Do(key)
+	return hash & c.size
+}
+
 // validateSet provides validating of the input data
 // before inserting to the cache
 func validateSet(key, value []byte) error {
@@ -108,17 +120,4 @@ func validateSet(key, value []byte) error {
 	}
 
 	return nil
-}
-
-func (c *Cache) get(shardID uint32, key []byte) ([]byte, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	if c == nil {
-		return nil, errNotInitialized
-	}
-	value, err := c.shards[shardID].get(key)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get value from shard id: %d %v", shardID, err)
-	}
-	return value, nil
 }
