@@ -59,10 +59,7 @@ func (r *Radix) Get(key string) ([]byte, error) {
 }
 
 func (r *Radix) Set(key string, value []byte) error {
-	_, ok := r.tree.Insert(key, value)
-	if !ok {
-		return fmt.Errorf("unable to insert data")
-	}
+	r.tree.Insert(key, value)
 	return nil
 }
 
