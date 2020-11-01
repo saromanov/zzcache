@@ -11,6 +11,8 @@ func TestSet(t *testing.T) {
 	c, err := New(10, "")
 	assert.NoError(t, err)
 	assert.NoError(t, c.Set([]byte("key"), []byte("value"), 2*time.Second))
+	assert.Error(t, c.Set([]byte(""), []byte("value"), 2*time.Second))
+	assert.Error(t, c.Set([]byte("key"), []byte(""), 2*time.Second))
 
 	_, err = New(0, "")
 	assert.Error(t, err)
