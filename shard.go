@@ -3,14 +3,10 @@ package zzcache
 import (
 	"bytes"
 	"encoding/gob"
-	"errors"
-	"fmt"
 	"time"
 )
 
 const maxKeySize = 65535
-
-var errKeyTooLarge = errors.New("key is too large")
 
 // shard provides implementation of the shard for cache
 type shard struct {
@@ -33,31 +29,33 @@ func newShard(s Store) *shard {
 // set provides inserting of the data
 func (s *shard) set(key, value []byte, d time.Duration) error {
 	if len(key) > maxKeySize {
-		return errKeyTooLarge
+		return ErrKeyTooLarge
 	}
 
+	// A zero duration means no expiration: the TTL is stored
+	// as the zero time, which is never in the past.
+	var ttl time.Time
+	if d > 0 {
+		ttl = time.Now().UTC().Add(d)
+	}
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
 	if err := enc.Encode(&entry{
 		Value: value,
-		TTL:   time.Now().UTC().Add(d),
+		TTL:   ttl,
 	}); err != nil {
 		return err
 	}
-	err := s.store.Set(string(key), buf.Bytes())
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.store.Set(string(key), buf.Bytes())
 }
 
 func (s *shard) get(key []byte) ([]byte, error) {
 	value, err := s.store.Get(string(key))
-	if value == nil {
-		return nil, errNotFound
-	}
 	if err != nil {
-		return nil, err
+		return nil, ErrNotFound
+	}
+	if value == nil {
+		return nil, ErrNotFound
 	}
 
 	w := entry{}
@@ -68,8 +66,13 @@ func (s *shard) get(key []byte) ([]byte, error) {
 	if err := dec.Decode(&w); err != nil {
 		return nil, err
 	}
-	if time.Now().UTC().After(w.TTL) {
-		return nil, fmt.Errorf("data has expired")
+	// The zero TTL means the entry never expires.
+	if !w.TTL.IsZero() && time.Now().UTC().After(w.TTL) {
+		// Evict the expired entry so it does not leak memory.
+		if delErr := s.store.Delete(string(key)); delErr != nil {
+			return nil, ErrExpired
+		}
+		return nil, ErrExpired
 	}
 	return w.Value, nil
 }
