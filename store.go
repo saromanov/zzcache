@@ -51,6 +51,18 @@ func (m *Map) Delete(key string) error {
 	return nil
 }
 
+// Range calls fn for each entry under a read lock.
+// fn must not call back into the same Map.
+func (m *Map) Range(fn func(key string, value []byte) bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for k, v := range m.data {
+		if !fn(k, v) {
+			return
+		}
+	}
+}
+
 type Radix struct {
 	tree *radix.Tree
 }
@@ -78,4 +90,15 @@ func (r *Radix) Delete(key string) error {
 	// Deleting a missing key is not an error.
 	r.tree.Delete(key)
 	return nil
+}
+
+// Range calls fn for each entry until fn returns false.
+// fn must not call back into the same Radix.
+//
+// Note: go-radix Walk uses inverted semantics (true stops the
+// walk), so the callback is inverted here.
+func (r *Radix) Range(fn func(key string, value []byte) bool) {
+	r.tree.Walk(func(k string, v interface{}) bool {
+		return !fn(k, v.([]byte))
+	})
 }
