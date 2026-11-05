@@ -2,19 +2,19 @@ package zzcache
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 )
 
-const shardCount = 512
-
+// Sentinel errors returned by the cache. Use errors.Is to check for them.
 var (
-	errNotInitialized = errors.New("cache is not initialized")
-	errNotInserted    = errors.New("unable to insert data")
-	errNotFound       = errors.New("element is not found")
-	errNoKey          = errors.New("key is not defined")
-	errNoValue        = errors.New("value is not defined")
+	ErrNotInitialized = errors.New("cache is not initialized")
+	ErrNotFound       = errors.New("element is not found")
+	ErrExpired        = errors.New("data has expired")
+	ErrNoKey          = errors.New("key is not defined")
+	ErrNoValue        = errors.New("value is not defined")
+	ErrKeyTooLarge    = errors.New("key is too large")
+	ErrNoShards       = errors.New("number of shards is not defined")
 )
 
 // Cache defines app objects
@@ -25,10 +25,10 @@ type Cache struct {
 	size   uint32
 }
 
-// New creates app
+// New creates app. If d passed to Set is zero, the entry never expires.
 func New(size uint32, storeType string) (*Cache, error) {
 	if size == 0 {
-		return nil, fmt.Errorf("size of shards is not deifned")
+		return nil, ErrNoShards
 	}
 	store := NewMap()
 	if storeType == "radix" {
@@ -50,73 +50,68 @@ func initShards(size uint32, st Store) []*shard {
 	return s
 }
 
-// Set provides inserting to the cache
+// Set provides inserting to the cache. A zero duration means no expiration.
 func (c *Cache) Set(key, value []byte, d time.Duration) error {
+	if c == nil {
+		return ErrNotInitialized
+	}
 	return c.set(c.getShard(key), key, value, d)
 }
 
 // Get provides getting data from the cache
 func (c *Cache) Get(key []byte) ([]byte, error) {
+	if c == nil {
+		return nil, ErrNotInitialized
+	}
 	return c.get(c.getShard(key), key)
 }
 
-// Delete provides deletetign data from the cache
+// Delete provides deleting data from the cache.
+// Deleting a missing key is not an error.
 func (c *Cache) Delete(key []byte) error {
-	c.mu.Lock()
-	err := c.shards[c.getShard(key)].del(key)
-	if err != nil {
-		return fmt.Errorf("unable to delete key: %v", err)
+	if c == nil {
+		return ErrNotInitialized
 	}
-
+	c.mu.Lock()
 	defer c.mu.Unlock()
+	if err := c.shards[c.getShard(key)].del(key); err != nil {
+		return err
+	}
 	return nil
 }
 
 // inner method for validating of the input data
 // and append data to shards
 func (c *Cache) set(shardID uint32, key, value []byte, d time.Duration) error {
-	if c == nil {
-		return errNotInitialized
-	}
 	if err := validateSet(key, value); err != nil {
 		return err
 	}
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if err := c.shards[shardID].set(key, value, d); err != nil {
-		return err
-	}
-	return nil
+	return c.shards[shardID].set(key, value, d)
 }
 
 func (c *Cache) get(shardID uint32, key []byte) ([]byte, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	if c == nil {
-		return nil, errNotInitialized
-	}
-	value, err := c.shards[shardID].get(key)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get value from shard id: %d %v", shardID, err)
-	}
-	return value, nil
+	return c.shards[shardID].get(key)
 }
 
 func (c *Cache) getShard(key []byte) uint32 {
 	hash := c.hash.Do(key)
-	return hash & c.size
+	return hash % c.size
 }
 
 // validateSet provides validating of the input data
 // before inserting to the cache
 func validateSet(key, value []byte) error {
 	if len(key) == 0 {
-		return errNoKey
+		return ErrNoKey
 	}
 
 	if len(value) == 0 {
-		return errNoValue
+		return ErrNoValue
 	}
 
 	return nil

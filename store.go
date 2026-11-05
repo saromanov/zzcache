@@ -64,9 +64,7 @@ func (r *Radix) Set(key string, value []byte) error {
 }
 
 func (r *Radix) Delete(key string) error {
-	_, ok := r.tree.Delete(key)
-	if !ok {
-		return fmt.Errorf("unable to delete key: %s", key)
-	}
+	// Deleting a missing key is not an error.
+	r.tree.Delete(key)
 	return nil
 }
