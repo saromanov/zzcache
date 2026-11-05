@@ -1,22 +1,23 @@
 package zzcache
 
 import (
-	"bytes"
-	"encoding/gob"
+	"encoding/binary"
+	"sync"
 	"time"
 )
 
 const maxKeySize = 65535
 
-// shard provides implementation of the shard for cache
-type shard struct {
-	store Store
-}
+// ttlHeaderSize is the size of the 8-byte big-endian TTL header
+// stored in front of every value.
+const ttlHeaderSize = 8
 
-// entry represents d-s for inserting to linked list
-type entry struct {
-	Value []byte
-	TTL   time.Time
+// shard provides implementation of the shard for cache.
+// Each shard has its own lock, so operations on different shards
+// do not contend with each other.
+type shard struct {
+	mu    sync.RWMutex
+	store Store
 }
 
 // newShard creates a new shard
@@ -32,51 +33,54 @@ func (s *shard) set(key, value []byte, d time.Duration) error {
 		return ErrKeyTooLarge
 	}
 
-	// A zero duration means no expiration: the TTL is stored
-	// as the zero time, which is never in the past.
-	var ttl time.Time
+	// A zero duration means no expiration: the TTL header is zero.
+	var ttl int64
 	if d > 0 {
-		ttl = time.Now().UTC().Add(d)
+		ttl = time.Now().UTC().Add(d).UnixNano()
 	}
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	if err := enc.Encode(&entry{
-		Value: value,
-		TTL:   ttl,
-	}); err != nil {
-		return err
-	}
-	return s.store.Set(string(key), buf.Bytes())
+
+	// buf is a fresh allocation, so the stored value does not alias
+	// the caller's slice.
+	buf := make([]byte, ttlHeaderSize+len(value))
+	binary.BigEndian.PutUint64(buf[:ttlHeaderSize], uint64(ttl))
+	copy(buf[ttlHeaderSize:], value)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.store.Set(string(key), buf)
 }
 
 func (s *shard) get(key []byte) ([]byte, error) {
-	value, err := s.store.Get(string(key))
+	s.mu.RLock()
+	buf, err := s.store.Get(string(key))
+	s.mu.RUnlock()
 	if err != nil {
 		return nil, ErrNotFound
 	}
-	if value == nil {
-		return nil, ErrNotFound
+	if len(buf) < ttlHeaderSize {
+		return nil, ErrCorrupted
 	}
 
-	w := entry{}
-
-	//Use default gob decoder
-	reader := bytes.NewReader(value)
-	dec := gob.NewDecoder(reader)
-	if err := dec.Decode(&w); err != nil {
-		return nil, err
-	}
-	// The zero TTL means the entry never expires.
-	if !w.TTL.IsZero() && time.Now().UTC().After(w.TTL) {
+	ttl := int64(binary.BigEndian.Uint64(buf[:ttlHeaderSize]))
+	// A zero TTL means the entry never expires.
+	if ttl != 0 && time.Now().UTC().UnixNano() > ttl {
 		// Evict the expired entry so it does not leak memory.
-		if delErr := s.store.Delete(string(key)); delErr != nil {
-			return nil, ErrExpired
-		}
+		s.mu.Lock()
+		_ = s.store.Delete(string(key))
+		s.mu.Unlock()
 		return nil, ErrExpired
 	}
-	return w.Value, nil
+
+	// Copy the value out: the returned slice must not alias
+	// the stored buffer.
+	value := buf[ttlHeaderSize:]
+	out := make([]byte, len(value))
+	copy(out, value)
+	return out, nil
 }
 
 func (s *shard) del(key []byte) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.store.Delete(string(key))
 }
