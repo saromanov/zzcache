@@ -3,6 +3,7 @@ package zzcache
 import (
 	"encoding/binary"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -16,8 +17,10 @@ const ttlHeaderSize = 8
 // Each shard has its own lock, so operations on different shards
 // do not contend with each other.
 type shard struct {
-	mu    sync.RWMutex
-	store Store
+	mu        sync.RWMutex
+	store     Store
+	hitCount  uint64
+	missCount uint64
 }
 
 // newShard creates a new shard
@@ -55,9 +58,11 @@ func (s *shard) get(key []byte) ([]byte, error) {
 	buf, err := s.store.Get(string(key))
 	s.mu.RUnlock()
 	if err != nil {
+		atomic.AddUint64(&s.missCount, 1)
 		return nil, ErrNotFound
 	}
 	if len(buf) < ttlHeaderSize {
+		atomic.AddUint64(&s.missCount, 1)
 		return nil, ErrCorrupted
 	}
 
@@ -65,6 +70,7 @@ func (s *shard) get(key []byte) ([]byte, error) {
 	// A zero TTL means the entry never expires.
 	if ttl != 0 && time.Now().UTC().UnixNano() > ttl {
 		// Evict the expired entry so it does not leak memory.
+		atomic.AddUint64(&s.missCount, 1)
 		s.mu.Lock()
 		_ = s.store.Delete(string(key))
 		s.mu.Unlock()
@@ -76,6 +82,7 @@ func (s *shard) get(key []byte) ([]byte, error) {
 	value := buf[ttlHeaderSize:]
 	out := make([]byte, len(value))
 	copy(out, value)
+	atomic.AddUint64(&s.hitCount, 1)
 	return out, nil
 }
 
